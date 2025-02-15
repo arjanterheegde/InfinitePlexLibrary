@@ -79,18 +79,19 @@ export async function createDummyFile(source: string, target: string): Promise<v
 }
 
 export async function createSymlink(source: string, target: string): Promise<void> {
-
     try {
         // Check if the symlink already exists
         if (!fs.existsSync(target)) {
             console.log(`🔗 Creating symlink: ${target} -> ${source}`);
 
-            await fs.promises.symlink(source, target);
-
-            // Plex is too smart and recognizes if you link to the same sym/hardlink for multiple movies in your library.
-            // That's why we have to copy the whole file. Make sure your dummy file doesn't take up too much space!
-            // Need to find out if other methods are possible. Perhaps creating a kind of dynamic file at the OS level?
-            // It would know from where a file is opened and would behave like a separate file in each location... Just some brainfarts.
+            if (process.platform === "win32") {
+                // Use hard links for files on Windows TEST
+                    await fs.promises.link(source, target);
+            
+            } else {
+                // Use symlink for both files and directories on non-Windows platforms
+                await fs.promises.symlink(source, target);
+            }
 
             console.log("✅ Symlink successfully created.");
         } else {

@@ -8,6 +8,7 @@ import { notifyPlexFolderRefresh, updatePlexDescription } from "./systems/plex";
 import { cleanUpDummyFile, createDummyFile, createSymlink, ensureDirectoryExists, removeDummyFolder } from "./utils";
 import { terminateStreamByFile } from "./systems/tautulli";
 import { getEpisodesBySeriesId, groupEpisodesBySeason, searchSeriesInSonarr, getSeriesByTvdbId, monitorAllSeasons, monitorSeries } from "./systems/sonarr";
+import { getMetas } from "./systems/justwatch";
 
 const app = express();
 const PORT = 3000;
@@ -50,7 +51,7 @@ async function monitorSeasonAvailability(
                 if (unavailableEpisodes.length === 0) {
                     console.log(`🎉 All episodes for Season ${seasonNumber} of Series ID ${seriesId} are now available!`);
 
-                   clearInterval(interval);
+                    clearInterval(interval);
                     resolve();
                 } else {
                     requestStatus = `Waiting for ${unavailableEpisodes.length} episodes to be available in Season ${seasonNumber}...`;
@@ -282,7 +283,7 @@ app.post("/webhook", async (req: Request, res: Response, next: express.NextFunct
                     console.log("🔍 Searching for the rest of the seasons in Sonarr...");
                     await searchSeriesInSonarr(series.id, null, config.SONARR_URL, config.SONARR_API_KEY);
 
-                    
+
                 } catch (error: any) {
                     console.error(`❌ Error processing the series request: ${error.message}`);
                 } finally {
@@ -445,7 +446,7 @@ app.post("/sonarr-webhook", async (req: Request, res: Response) => {
         console.log(`✅ Successfully processed import for series: ${series.title}, Season: ${seasonNumber}, Episode: ${episode.episodeNumber}.`);
 
         res.status(200).send("Sonarr Download event processed successfully.");
-  
+
     } else {
         console.log("⚠️ No valid Sonarr event received.");
         res.status(200).send("Invalid Sonarr event.");
@@ -558,7 +559,7 @@ app.post("/radarr-webhook", async (req: Request, res: Response) => {
                         console.log(`❌ Movie not found in Radarr. Adding...`);
 
                         // Add the movie with default parameters
-                        const newMovie = await addMovieToRadarr(tmdbId, config.RADARR_4K_MOVIE_FOLDER!, 
+                        const newMovie = await addMovieToRadarr(tmdbId, config.RADARR_4K_MOVIE_FOLDER!,
                             Number(config.RADARR_4K_QUALITY_PROFILE_ID), true, true, config.RADARR_4K_URL!, config.RADARR_4K_API_KEY!, ["infiniteplexlibrary"]);
 
                         console.log(`🎥 Movie added to Radarr 4K: ${newMovie.title}`);
@@ -579,6 +580,24 @@ app.post("/radarr-webhook", async (req: Request, res: Response) => {
         res.status(200).send("Invalid event."); // should be 500 // rewrite the webhook part for sonarr test webhook
     }
 });
+
+
+// Webhook route to trigger fetching popular Netflix movies
+app.get("/justwatch-webhook", async (req: Request, res: Response) => {
+    console.log("📩 JustWatch Webhook received");
+
+    // Voor populaire Netflix films in Nederland
+    await getMetas('MOVIE', ['nfx'], 'NL', 'en', 10);
+
+    // Voor populaire Netflix series in Nederland
+    //await getMetas('SHOW', ['nfx'], 'NL', 'en', 10);
+
+    res.status(200).send("Popular Netflix movies fetched successfully.");
+});
+
+
+
+
 
 // Start the server
 app.listen(PORT, () => {
